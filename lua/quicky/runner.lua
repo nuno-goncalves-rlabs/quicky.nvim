@@ -26,12 +26,11 @@ R.run = function(action, path, session_name)
     Job:new({
         command = "tmux",
         args = {
-            "ls",
+            "list-windows",
+            "-t",
+            session_name,
             "-f",
-            "#{==:#{session_name}#{window_name},"
-                .. session_name
-                .. curName
-                .. "}",
+            "#{==:#{window_name}," .. curName .. "}",
             "-F",
             "#{pane_id}",
         },
@@ -40,6 +39,7 @@ R.run = function(action, path, session_name)
         end,
     }):sync()
 
+    local location = session_name .. ":" .. curName
     if not pane_id then
         Job:new({
             command = "tmux",
@@ -53,9 +53,6 @@ R.run = function(action, path, session_name)
                 "-F",
                 "#{pane_id}",
             },
-            on_stdout = function(_, data)
-                pane_id = data
-            end,
         }):sync()
     elseif sess_exists then
         Job:new({
@@ -63,13 +60,12 @@ R.run = function(action, path, session_name)
             args = {
                 "send-keys",
                 "-t",
-                session_name .. "." .. pane_id,
+                location,
                 "C-c",
             },
         }):sync()
     end
 
-    local location = session_name .. "." .. pane_id
     Job:new({
         command = "tmux",
         args = { "send-keys", "-t", location, "cd " .. path, "C-m" },
@@ -77,6 +73,14 @@ R.run = function(action, path, session_name)
     Job:new({
         command = "tmux",
         args = { "send-keys", "-t", location, action, "C-m" },
+    }):sync()
+    Job:new({
+        command = "tmux",
+        args = { "select-window", "-t", location },
+    }):sync()
+    Job:new({
+        command = "tmux",
+        args = { "switch-client", "-t", session_name },
     }):sync()
 end
 
